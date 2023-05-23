@@ -3,11 +3,17 @@
 varying vec2 TexCoords;
 
 uniform sampler2D colortex0;
+uniform int worldTime;
 
 
 void main()
 {
+    vec3 Color = texture2D(colortex0, TexCoords).rgb;
+    if(worldTime > 12000)
+    {
+        Color *= 0.45f;
+    }
     // Sample and apply gamma correction
-    vec3 Color = pow(texture2D(colortex0, TexCoords).rgb, vec3(1.0f / 2.2f));
+    Color = pow(Color, vec3(1.0f / 2.2f));
     gl_FragColor = vec4(Color, 1.0f);
 }

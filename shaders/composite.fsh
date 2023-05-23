@@ -1,6 +1,5 @@
 #version 120
 #include "distort.glsl"
-#include "options.glsl"
 
 varying vec2 TexCoords;
 
@@ -21,17 +20,33 @@ uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
 
+uniform int worldTime;
+
 /*
 const int colortex0Format = RGBA16F;
 const int colortex1Format = RGB16;
 const int colortex2Format = RGB16;
 */
 
+#define SHADOW_SAMPLES 2
+
+const float Ambient = 0.025f;
+
+const float sunPathRotation = -40.0f;
+const int shadowMapResolution = 1024;
+const int noiseTextureResolution = 8;
+
 float AdjustLightmapTorch(in float torch)
 {
     const float K = 2.0f;
     const float P = 5.06f;
     return K * pow(torch, P);
+}
+
+float AdjustLightmapSky(in float sky)
+{
+    float sky_2 = sky * sky;
+    return sky_2 * sky_2;
 }
 
 vec2 AdjustLightmap(in vec2 Lightmap)
@@ -94,8 +109,50 @@ vec3 GetShadow(float depth) {
     return ShadowAccum;
 }
 
+vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
+    vec2 texelSize = vec2(1.0) / textureSize2D( colortex0 , 0);
+
+    vec2 range = gl_FragCoord.xy / 2.0 * 0.999;
+
+    float left = pos.x - range.x;
+    float top = pos.y + range.y;
+    float right = pos.x + range.x;
+    float bottom = pos.y - range.y;
+
+    vec3 topLeftColor = texture2DLod( colortex0 , (floor(vec2(left, top) / texelSize) + 0.5) * texelSize, 0.0).rgb;
+    vec3 bottomRightColor = texture2DLod( colortex0 , (floor(vec2(right, bottom) / texelSize) + 0.5) * texelSize, 0.0).rgb;
+    vec3 bottomLeftColor = texture2DLod( colortex0 , (floor(vec2(left, bottom) / texelSize) + 0.5) * texelSize, 0.0).rgb;
+    vec3 topRightColor = texture2DLod( colortex0 , (floor(vec2(right, top) / texelSize) + 0.5) * texelSize, 0.0).rgb;
+
+    vec2 border;
+    if (pos.x / texelSize.x < left / texelSize.x)
+        border.x = left;
+    else if (pos.x / texelSize.x > right / texelSize.x)
+        border.x = right;
+    else
+        border.x = round(pos.x / texelSize.x) * texelSize.x;
+
+    if (pos.y / texelSize.y < bottom / texelSize.y)
+        border.y = bottom;
+    else if (pos.y / texelSize.y > top / texelSize.y)
+        border.y = top;
+    else
+        border.y = round(pos.y / texelSize.y) * texelSize.y;
+
+    float totalArea = 4.0 * range.x * range.y;
+
+    vec3 averageColor;
+    averageColor = ((border.x - left) * (top - border.y) / totalArea) * topLeftColor;
+    averageColor += ((right - border.x) * (border.y - bottom) / totalArea) * bottomRightColor;
+    averageColor += ((border.x - left) * (border.y - bottom) / totalArea) * bottomLeftColor;
+    averageColor += ((right - border.x) * (top - border.y) / totalArea) * topRightColor;
+
+    return vec4(averageColor, 1.0);
+}
+
 void main()
 {
+/* DRAWBUFFERS:0 */
     // gamma correction
     vec3 Albedo = pow(texture2D(colortex0, TexCoords).rgb, vec3(2.2f));
     float Depth = texture2D(depthtex0, TexCoords).r;
@@ -110,8 +167,13 @@ void main()
     vec3 LightmapColor = GetLightmapColor(Lightmap);
     // Compute cos theta between the normal and sun directions
     float NdotL = max(dot(Normal, normalize(sunPosition)), 0.0f);
-
     vec3 Diffuse = Albedo * (LightmapColor + NdotL * GetShadow(Depth) + Ambient); //Lighting calcul
-/* DRAWBUFFERS:0 */
-    gl_FragData[0] = vec4(Diffuse, 1.0f);
+
+    vec4 result = PixelShader(gl_FragCoord.xy);
+    vec3 modifiedDiffuse = result.rgb * Diffuse;
+
+    // Write the modified diffuse color to gl_FragData[0]
+    gl_FragData[0] = vec4(modifiedDiffuse, 1.0);
+
+    //gl_FragData[0] = vec4(Diffuse, 1.0f);
 }
