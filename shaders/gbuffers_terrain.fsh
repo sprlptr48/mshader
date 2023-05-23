@@ -1,5 +1,7 @@
 #version 120
 
+uniform int frametime;
+
 varying vec2 TexCoords;
 varying vec2 LightmapCoords;
 varying vec3 Normal;
@@ -12,7 +14,7 @@ void main()
 {
     // Sample from texture atlas and account for biome color + ambien occlusion
     vec4 Albedo = texture2D(texture, TexCoords) * Color;
-
+    //Normal = maxvector(Normal, 0.11111f/frametime);
 /* DRAWBUFFERS:012 */
     gl_FragData[0] = Albedo;
     gl_FragData[1] = vec4(Normal * 0.5f + 0.5f, 1.0f);
