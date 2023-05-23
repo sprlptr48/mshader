@@ -1,4 +1,4 @@
-#version 120
+#version 330 compatibility
 #include "distort.glsl"
 
 varying vec2 TexCoords;
@@ -22,6 +22,9 @@ uniform mat4 shadowProjection;
 
 uniform int worldTime;
 
+uniform float viewWidth;
+uniform float viewHeight;
+
 /*
 const int colortex0Format = RGBA16F;
 const int colortex1Format = RGB16;
@@ -29,6 +32,8 @@ const int colortex2Format = RGB16;
 */
 
 #define SHADOW_SAMPLES 2
+
+#define PIXELIZE_AMOUNT 1
 
 const float Ambient = 0.025f;
 
@@ -110,22 +115,24 @@ vec3 GetShadow(float depth) {
 }
 
 vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
-    vec2 texelSize = vec2(1.0) / textureSize2D( colortex0 , 0);
+    //vec2 texSize = vec2(textureSize(TexCoords, 0));
+    vec2 texelSize = vec2(1.0) / vec2(viewWidth / PIXELIZE_AMOUNT, viewHeight / PIXELIZE_AMOUNT); //texSize;
 
-    vec2 range = gl_FragCoord.xy / 2.0 * 0.999;
+    vec2 range = ((TexCoords.xy-0.5)) / 2.0 * 0.999; //FIX THE 2.5 NUMBBER
 
     float left = pos.x - range.x;
     float top = pos.y + range.y;
     float right = pos.x + range.x;
     float bottom = pos.y - range.y;
 
-    vec3 topLeftColor = texture2DLod( colortex0 , (floor(vec2(left, top) / texelSize) + 0.5) * texelSize, 0.0).rgb;
-    vec3 bottomRightColor = texture2DLod( colortex0 , (floor(vec2(right, bottom) / texelSize) + 0.5) * texelSize, 0.0).rgb;
-    vec3 bottomLeftColor = texture2DLod( colortex0 , (floor(vec2(left, bottom) / texelSize) + 0.5) * texelSize, 0.0).rgb;
-    vec3 topRightColor = texture2DLod( colortex0 , (floor(vec2(right, top) / texelSize) + 0.5) * texelSize, 0.0).rgb;
+    vec3 topLeftColor = texture2DLod(colortex0, (floor(vec2(left, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 bottomRightColor = texture2DLod(colortex0, (floor(vec2(right, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 bottomLeftColor = texture2DLod(colortex0, (floor(vec2(left, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 topRightColor = texture2DLod(colortex0, (floor(vec2(right, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
 
-    vec2 border;
-    if (pos.x / texelSize.x < left / texelSize.x)
+
+    vec2 border = min(max(ceil((pos / texelSize) - 0.5)/texelSize, vec2(left, bottom)), vec2(right, top));
+    /*if (pos.x / texelSize.x < left / texelSize.x)
         border.x = left;
     else if (pos.x / texelSize.x > right / texelSize.x)
         border.x = right;
@@ -137,7 +144,7 @@ vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie c
     else if (pos.y / texelSize.y > top / texelSize.y)
         border.y = top;
     else
-        border.y = round(pos.y / texelSize.y) * texelSize.y;
+        border.y = round(pos.y / texelSize.y) * texelSize.y;*/
 
     float totalArea = 4.0 * range.x * range.y;
 
@@ -146,6 +153,10 @@ vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie c
     averageColor += ((right - border.x) * (border.y - bottom) / totalArea) * bottomRightColor;
     averageColor += ((border.x - left) * (border.y - bottom) / totalArea) * bottomLeftColor;
     averageColor += ((right - border.x) * (top - border.y) / totalArea) * topRightColor;
+    // averageColor = topLeftColor / 4;
+    // averageColor += bottomRightColor / 4;
+    // averageColor += bottomLeftColor / 4;
+    // averageColor += topRightColor / 4;
 
     return vec4(averageColor, 1.0);
 }
@@ -158,7 +169,7 @@ void main()
     float Depth = texture2D(depthtex0, TexCoords).r;
     if(Depth == 1.0f){
         gl_FragData[0] = vec4(Albedo, 1.0f);
-        return;
+        //return;
     }
     // Get the normal
     vec3 Normal = normalize(texture2D(colortex1, TexCoords).rgb * 2.0f - 1.0f);
@@ -169,11 +180,11 @@ void main()
     float NdotL = max(dot(Normal, normalize(sunPosition)), 0.0f);
     vec3 Diffuse = Albedo * (LightmapColor + NdotL * GetShadow(Depth) + Ambient); //Lighting calcul
 
-    vec4 result = PixelShader(gl_FragCoord.xy);
-    vec3 modifiedDiffuse = result.rgb * Diffuse;
+    vec4 result = PixelShader(TexCoords.xy);
+    vec3 modifiedDiffuse = result.rgb; //* Diffuse;
 
     // Write the modified diffuse color to gl_FragData[0]
-    gl_FragData[0] = vec4(modifiedDiffuse, 1.0);
+    gl_FragData[0] = vec4(modifiedDiffuse, 1.0f);
 
     //gl_FragData[0] = vec4(Diffuse, 1.0f);
 }
