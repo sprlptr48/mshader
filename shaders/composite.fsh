@@ -133,10 +133,14 @@ void main()
     vec3 Diffuse = Albedo * (LightmapColor + NdotL * GetShadow(Depth) + Ambient);
     
     float currentHour = (worldTime%24000)/24000.0;
+    float u_saturation = 2.0;
     vec3 dayColor = vec3(1.0, 1.0, .9);
     vec3 nightColor = vec3(0.2,0.4,.9);
     vec3 FinalColor = mix(dayColor, nightColor, abs(currentHour - 0.25)*1.33333333);
     FinalColor *= Diffuse;
+    float gray = dot(FinalColor, vec3(0.299, 0.587, 0.114));
+    vec3 shade = vec3(gray, gray, gray);
+    FinalColor = mix(shade, FinalColor, u_saturation);
     gl_FragData[0] = vec4(FinalColor, 1.0);
 
 }
