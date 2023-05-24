@@ -19,7 +19,7 @@ uniform int isEyeInWater;
 uniform int worldTime;
 
 #ifndef PIXELIZE_AMOUNT
-#define PIXELIZE_AMOUNT 5
+#define PIXELIZE_AMOUNT 1
 #endif
 
 vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
