@@ -24,10 +24,10 @@ uniform int worldTime;
 
 vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
     //vec2 texSize = vec2(textureSize(TexCoords, 0));
-    vec2 texelSize = vec2(1.0) / vec2(viewWidth / PIXELIZE_AMOUNT, viewHeight / PIXELIZE_AMOUNT); //texSize;
+    vec2 output_size = vec2(viewWidth / PIXELIZE_AMOUNT, viewHeight / PIXELIZE_AMOUNT);
+    vec2 texelSize = vec2(1.0) / output_size; //texSize;
 
-    vec2 range = ((TexCoords.xy-0.5)/100.0) / 2.0 * 0.999; //Change the 1.0 so fov is fixed
-
+    vec2 range = vec2(1.0 / output_size) / 2.0 * 0.999;
     float left = pos.x - range.x;
     float top = pos.y + range.y;
     float right = pos.x + range.x;
