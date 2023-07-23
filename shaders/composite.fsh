@@ -64,7 +64,7 @@ vec3 GetLightmapColor(in vec2 Lightmap)
 {
     // First adjust the lightmap
     Lightmap = AdjustLightmap(Lightmap);
-    const vec3 TorchColor = vec3(1.0f, 0.25f, 0.08f);
+    const vec3 TorchColor = vec3(0.95f, 0.28f, 0.1f);
     const vec3 SkyColor = vec3(0.05f, 0.15f, 0.3f);
     vec3 TorchLighting = Lightmap.x * TorchColor;
     vec3 SkyLighting = Lightmap.y * SkyColor;
