@@ -1,0 +1,58 @@
+#version 460 compatibility
+#include "distort.glsl"
+
+/*
+    The shader that does the pixel art effect.
+*/
+
+varying vec2 TexCoords;
+
+// The color textures which we wrote to
+uniform sampler2D colortex0;
+/*
+const int colortex0Format = RGBA16F;
+*/
+
+uniform float viewWidth;
+uniform float viewHeight;
+
+#define PIXELIZE_AMOUNT 16.0
+
+vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
+    //vec2 texSize = vec2(textureSize(TexCoords, 0));
+    vec2 viewSize = vec2(viewWidth, viewHeight);
+    vec2 output_size = viewSize / vec2(PIXELIZE_AMOUNT);
+    vec2 texelSize = vec2(1.0) / output_size;
+
+    vec2 range = vec2(1.0 / output_size) / 2.0 * 0.999;
+    float left = pos.x - range.x;
+    float top = pos.y + range.y;
+    float right = pos.x + range.x;
+    float bottom = pos.y - range.y;
+
+    vec3 topLeftColor = texture2DLod(colortex0, (floor(vec2(left, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 bottomRightColor = texture2DLod(colortex0, (floor(vec2(right, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 bottomLeftColor = texture2DLod(colortex0, (floor(vec2(left, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+    vec3 topRightColor = texture2DLod(colortex0, (floor(vec2(right, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
+
+
+    vec2 border = min(max(ceil((pos / texelSize) - 0.5)/texelSize, vec2(left, bottom)), vec2(right, top));
+
+    float totalArea = 4.0 * range.x * range.y;
+
+    vec3 averageColor;
+    averageColor = ((border.x - left) * (top - border.y) / totalArea) * topLeftColor;
+    averageColor += ((right - border.x) * (border.y - bottom) / totalArea) * bottomRightColor;
+    averageColor += ((border.x - left) * (border.y - bottom) / totalArea) * bottomLeftColor;
+    averageColor += ((right - border.x) * (top - border.y) / totalArea) * topRightColor;
+
+    return vec4(averageColor, 1.0);
+}
+
+void main()
+{
+/* DRAWBUFFERS:0 */
+    vec4 result = PixelShader(TexCoords);
+    //vec4 result = texture2DLod(colortex0, TexCoords, 0.0); //No filter applied color
+    gl_FragData[0] = result;
+}

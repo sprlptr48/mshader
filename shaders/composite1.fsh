@@ -18,50 +18,33 @@ uniform float viewHeight;
 uniform int isEyeInWater;
 uniform int worldTime;
 
-#ifndef PIXELIZE_AMOUNT
-#define PIXELIZE_AMOUNT 1
-#endif
+vec4 colorChange(vec4 color, int quality) //Turn the color into a lower bit style
+{
+    color.rgb = color.rgb * (quality-1) - 0.5;
+    color.rgb = color.rgb / (quality-1);
+    return color;
+}
 
-vec4 PixelShader(vec2 pos) { //Copied from ChatGPT, Originally made for Magpie check those.
-    //vec2 texSize = vec2(textureSize(TexCoords, 0));
-    vec2 output_size = vec2(viewWidth / PIXELIZE_AMOUNT, viewHeight / PIXELIZE_AMOUNT);
-    vec2 texelSize = vec2(1.0) / output_size; //texSize;
-
-    vec2 range = vec2(1.0 / output_size) / 2.0 * 0.999;
-    float left = pos.x - range.x;
-    float top = pos.y + range.y;
-    float right = pos.x + range.x;
-    float bottom = pos.y - range.y;
-
-    vec3 topLeftColor = texture2DLod(colortex0, (floor(vec2(left, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
-    vec3 bottomRightColor = texture2DLod(colortex0, (floor(vec2(right, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
-    vec3 bottomLeftColor = texture2DLod(colortex0, (floor(vec2(left, bottom) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
-    vec3 topRightColor = texture2DLod(colortex0, (floor(vec2(right, top) / texelSize) + vec2(0.5)) * texelSize, 0.0).rgb;
-
-
-    vec2 border = min(max(ceil((pos / texelSize) - 0.5)/texelSize, vec2(left, bottom)), vec2(right, top));
-
-    float totalArea = 4.0 * range.x * range.y;
-
-    vec3 averageColor;
-    averageColor = ((border.x - left) * (top - border.y) / totalArea) * topLeftColor;
-    averageColor += ((right - border.x) * (border.y - bottom) / totalArea) * bottomRightColor;
-    averageColor += ((border.x - left) * (border.y - bottom) / totalArea) * bottomLeftColor;
-    averageColor += ((right - border.x) * (top - border.y) / totalArea) * topRightColor;
-
-    return vec4(averageColor, 1.0);
+vec4 sharpen(vec2 pos, float strength)
+{
+    float unit = 1.0 / viewWidth;
+    vec4 color = (strength*4 + 1.0) * texture2DLod(colortex0, pos, 0.0);
+    color -= strength * texture2DLod(colortex0, vec2(pos.x + unit , pos.y), 0.0);
+    color -= strength * texture2DLod(colortex0, vec2(pos.x - unit , pos.y), 0.0);
+    color -= strength * texture2DLod(colortex0, vec2(pos.x , pos.y + unit), 0.0);
+    color -= strength * texture2DLod(colortex0, vec2(pos.x , pos.y - unit), 0.0);
+    return color;
 }
 
 void main()
 {
 /* DRAWBUFFERS:0 */
-    vec4 result = PixelShader(TexCoords);
+    vec4 result = sharpen(TexCoords, 1.2);
+    //vec4 result = texture2DLod(colortex0, TexCoords, 0.0); //No filter applied color
+    result = colorChange(result, 40);
     if (isEyeInWater == 1)
     {
         result *= vec4(0.2,0.4,.9,1.);
     }
-    //vec3 modifiedDiffuse = result.rgb; //* Diffuse;
-    // Write the modified diffuse color to gl_FragData[0]
     gl_FragData[0] = result;
-    //gl_FragData[0] = vec4(Diffuse, 1.0f);
 }
