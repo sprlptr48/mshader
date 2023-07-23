@@ -1,7 +1,5 @@
 #version 460 compatibility
 
-uniform int frametime;
-
 varying vec2 TexCoords;
 varying vec2 LightmapCoords;
 varying vec3 Normal;
