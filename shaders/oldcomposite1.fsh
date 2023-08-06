@@ -39,7 +39,7 @@ vec4 sharpen(vec2 pos, float strength)
 void main()
 {
 /* DRAWBUFFERS:0 */
-    vec4 result = sharpen(TexCoords, 1.2);
+    vec4 result = sharpen(TexCoords, 0.1);
     //vec4 result = texture2DLod(colortex0, TexCoords, 0.0); //No filter applied color
     result = colorChange(result, 40);
     if (isEyeInWater == 1)
